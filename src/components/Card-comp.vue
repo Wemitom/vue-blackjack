@@ -1,15 +1,26 @@
 <script setup lang="ts">
-defineProps<{ suit: Suits; rank: Ranks; revealed: Boolean }>();
+import { ref, watch } from "vue";
+
+const props = defineProps<{ suit: Suits; rank: Ranks; revealed: Boolean }>();
+
+const revealCardClass = ref("");
+const revealCardAsync = () =>
+  setTimeout(
+    () => (revealCardClass.value = props.revealed ? "card-revealed" : ""),
+    300
+  );
+
+watch(() => props.revealed, revealCardAsync, { deep: true, immediate: true });
 </script>
 
 <template>
   <div class="card">
-    <div class="card-inner" :class="cardObject">
+    <div class="card-inner" :class="revealCardClass">
       <div class="card-front">
-        <img src="../assets/red.svg" />
+        <img src="../assets/red.svg" width="140" height="200" />
       </div>
       <div class="card-back">
-        <img :src="cardSuit" />
+        <img :src="cardSuit" width="140" height="200" />
       </div>
     </div>
   </div>
@@ -40,9 +51,6 @@ export default {
         import.meta.url
       ).href;
     },
-    cardObject(): { "card-revealed": boolean } {
-      return { "card-revealed": !!this.revealed };
-    },
   },
 };
 </script>
@@ -50,8 +58,8 @@ export default {
 <style scoped>
 .card {
   perspective: 1000px;
-  width: 234px;
-  height: 333px;
+  width: 140px;
+  height: 200px;
 }
 
 .card-inner {

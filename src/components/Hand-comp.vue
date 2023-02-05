@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { Card } from "@/utils";
 import CardComp from "./Card-comp.vue";
-import { ref } from "vue";
 
 defineProps<{
   deck: Card[];
   cards: number[];
   dealerTurn: boolean;
   sum: number;
+  gameStatus: "play" | "win" | "lose" | "draw";
   player?: boolean;
 }>();
 defineEmits(["update:cards", "update:turn"]);
@@ -21,21 +21,16 @@ defineEmits(["update:cards", "update:turn"]);
         :key="deck[cardInd].suit + '_' + deck[cardInd].rank"
         :suit="deck[cardInd].suit"
         :rank="deck[cardInd].rank"
-        :revealed="player || cardInd === 2 || dealerTurn ? true : showCard"
+        :revealed="player || cardInd === 2 || (gameStatus !== 'play' && true)"
       />
     </div>
-    <div role="menu" v-if="player">
+    <div role="menu" v-if="player && gameStatus === 'play'">
       <button @click="$emit('update:turn')">Stand</button>
       <button @click="$emit('update:cards')">Hit</button>
     </div>
-    <p v-if="player || dealerTurn ? true : showCard">Sum: {{ sum }}</p>
+    <p v-if="player || (gameStatus !== 'play' && true)">Sum: {{ sum }}</p>
   </div>
 </template>
-
-<script lang="ts">
-const showCard = ref(false);
-const turnCard = () => (showCard.value = !showCard.value);
-</script>
 
 <style>
 .cards {

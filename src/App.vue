@@ -5,12 +5,13 @@ import { deck, getCardValue, shuffle } from "./utils";
 </script>
 
 <template>
-  <main>
+  <main class="hands">
     <HandComp
       :deck="shuffledDeck"
       :cards="hands.dealer"
       :dealer-turn="dealerTurn"
       :sum="maxSum.dealer ?? Math.max(...sums.dealer)"
+      :game-status="gameStatus"
       @update:cards="addCard()"
     />
     <HandComp
@@ -18,15 +19,18 @@ import { deck, getCardValue, shuffle } from "./utils";
       :cards="hands.player"
       :dealer-turn="dealerTurn"
       :sum="maxSum.player ?? Math.max(...sums.player)"
+      :game-status="gameStatus"
       @update:cards="addCard(true)"
       @update:turn="changeTurn()"
       player
     />
+    <button @click="reset()" v-if="gameStatus !== 'play'">Reset</button>
+    Status: {{ gameStatus }}
   </main>
 </template>
 
 <script lang="ts">
-const shuffledDeck = shuffle(deck);
+const shuffledDeck = ref(shuffle(deck));
 
 const nextCard = ref(4);
 const drawCard = () => nextCard.value++;
@@ -57,7 +61,7 @@ watch(
   () => hands.value.dealer,
   (newCards) =>
     (cardValues.value.dealer = newCards.map((cardInd) =>
-      getCardValue(shuffledDeck[cardInd].rank)
+      getCardValue(shuffledDeck.value[cardInd].rank)
     )),
   { deep: true, immediate: true }
 );
@@ -65,7 +69,7 @@ watch(
   () => hands.value.player,
   (newCards) =>
     (cardValues.value.player = newCards.map((cardInd) =>
-      getCardValue(shuffledDeck[cardInd].rank)
+      getCardValue(shuffledDeck.value[cardInd].rank)
     )),
   { deep: true, immediate: true }
 );
@@ -98,9 +102,9 @@ const calculateSums = (sum: number[], val: number | number[]) => {
 const dealerHit = ref(0);
 const dealerTurn = ref(false);
 const changeTurn = () => (dealerTurn.value = true);
-watch(
-  [dealerTurn, dealerHit],
-  () => {
+watch([dealerTurn, dealerHit], () => {
+  console.log("aa");
+  if (dealerTurn.value) {
     if (maxSum.value.dealer && maxSum.value.dealer < 17) {
       addCard();
     } else {
@@ -113,19 +117,17 @@ watch(
       } else if (
         (maxSum.value.dealer === 21 && maxSum.value.player !== 21) ||
         (maxSum.value.dealer &&
-          (!maxSum.value.player || maxSum.value.player < maxSum.value.dealer))
+          (!maxSum.value.player ||
+            maxSum.value.player < maxSum.value.dealer)) ||
+        !maxSum.value.player
       ) {
         gameStatus.value = "lose";
-      } else if (
-        (!maxSum.value.dealer && !maxSum.value.player) ||
-        maxSum.value.dealer === maxSum.value.player
-      ) {
+      } else if (maxSum.value.dealer === maxSum.value.player) {
         gameStatus.value = "draw";
       }
     }
-  },
-  { flush: "post" }
-);
+  }
+});
 
 const maxSum = ref<{ dealer?: number; player?: number }>({
   dealer: 0,
@@ -148,22 +150,23 @@ watch(
   { deep: true, immediate: true }
 );
 
-const unwatch = watch(
+watch(
   () => maxSum.value,
   (newMaxSum) => {
-    if (newMaxSum.player !== newMaxSum.dealer) {
-      if (newMaxSum.player === 21) {
-        gameStatus.value = "win";
-      } else if (newMaxSum.dealer === 21) {
-        gameStatus.value = "lose";
-      }
-    } else {
-      if (newMaxSum.player === 21) {
-        gameStatus.value = "draw";
+    if (nextCard.value === 4) {
+      if (newMaxSum.player !== newMaxSum.dealer) {
+        if (newMaxSum.player === 21) {
+          console.log("a");
+          changeTurn();
+        } else if (newMaxSum.dealer === 21) {
+          gameStatus.value = "lose";
+        }
+      } else {
+        if (newMaxSum.player === 21) {
+          gameStatus.value = "draw";
+        }
       }
     }
-
-    unwatch();
   },
   { deep: true }
 );
@@ -173,7 +176,7 @@ watch(
   (newMaxSum) => {
     if (newMaxSum === 21) {
       if (newMaxSum !== maxSum.value.dealer) {
-        gameStatus.value = "win";
+        changeTurn();
       } else {
         gameStatus.value = "draw";
       }
@@ -204,13 +207,25 @@ watch(
   { deep: true, immediate: true }
 );
 
+const reset = () => (gameStatus.value = "play");
 watch(gameStatus, (newStatus) => {
   if (newStatus === "play") {
+    dealerTurn.value = false;
     nextCard.value = 4;
     hands.value = {
       dealer: [2, 3],
       player: [0, 1],
     };
+    shuffledDeck.value = shuffle(deck);
   }
 });
 </script>
+
+<style>
+.hands {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+}
+</style>
