@@ -31,6 +31,8 @@ const shuffledDeck = shuffle(deck);
 const nextCard = ref(4);
 const drawCard = () => nextCard.value++;
 
+const gameStatus = ref<"play" | "win" | "lose" | "draw">("play");
+
 const hands = ref<{ dealer: number[]; player: number[] }>({
   dealer: [2, 3],
   player: [0, 1],
@@ -93,27 +95,6 @@ const calculateSums = (sum: number[], val: number | number[]) => {
   return sum;
 };
 
-const maxSum = ref<{ dealer?: number; player?: number }>({
-  dealer: 0,
-  player: 0,
-});
-watch(
-  () => sums.value.dealer,
-  () =>
-    (maxSum.value.dealer =
-      sums.value.dealer.filter((v) => v <= 21)[0] &&
-      Math.max(...sums.value.dealer.filter((v) => v <= 21))),
-  { deep: true, immediate: true }
-);
-watch(
-  () => sums.value.player,
-  () =>
-    (maxSum.value.player =
-      sums.value.player.filter((v) => v <= 21)[0] &&
-      Math.max(...sums.value.player.filter((v) => v <= 21))),
-  { deep: true, immediate: true }
-);
-
 const dealerHit = ref(0);
 const dealerTurn = ref(false);
 const changeTurn = () => (dealerTurn.value = true);
@@ -122,9 +103,85 @@ watch(
   () => {
     if (maxSum.value.dealer && maxSum.value.dealer < 17) {
       addCard();
+    } else {
+      if (
+        (maxSum.value.player === 21 && maxSum.value.dealer !== 21) ||
+        (maxSum.value.player &&
+          (!maxSum.value.dealer || maxSum.value.player > maxSum.value.dealer))
+      ) {
+        gameStatus.value = "win";
+      } else if (
+        (maxSum.value.dealer === 21 && maxSum.value.player !== 21) ||
+        (maxSum.value.dealer &&
+          (!maxSum.value.player || maxSum.value.player < maxSum.value.dealer))
+      ) {
+        gameStatus.value = "lose";
+      } else if (
+        (!maxSum.value.dealer && !maxSum.value.player) ||
+        maxSum.value.dealer === maxSum.value.player
+      ) {
+        gameStatus.value = "draw";
+      }
     }
   },
   { flush: "post" }
+);
+
+const maxSum = ref<{ dealer?: number; player?: number }>({
+  dealer: 0,
+  player: 0,
+});
+watch(
+  () => sums.value.dealer,
+  (newSums) =>
+    (maxSum.value.dealer =
+      newSums.filter((v) => v <= 21)[0] &&
+      Math.max(...newSums.filter((v) => v <= 21))),
+  { deep: true, immediate: true }
+);
+watch(
+  () => sums.value.player,
+  (newSums) =>
+    (maxSum.value.player =
+      newSums.filter((v) => v <= 21)[0] &&
+      Math.max(...newSums.filter((v) => v <= 21))),
+  { deep: true, immediate: true }
+);
+
+const unwatch = watch(
+  () => maxSum.value,
+  (newMaxSum) => {
+    if (newMaxSum.player !== newMaxSum.dealer) {
+      if (newMaxSum.player === 21) {
+        gameStatus.value = "win";
+      } else if (newMaxSum.dealer === 21) {
+        gameStatus.value = "lose";
+      }
+    } else {
+      if (newMaxSum.player === 21) {
+        gameStatus.value = "draw";
+      }
+    }
+
+    unwatch();
+  },
+  { deep: true }
+);
+
+watch(
+  () => maxSum.value.player,
+  (newMaxSum) => {
+    if (newMaxSum === 21) {
+      if (newMaxSum !== maxSum.value.dealer) {
+        gameStatus.value = "win";
+      } else {
+        gameStatus.value = "draw";
+      }
+    } else if (!newMaxSum) {
+      changeTurn();
+    }
+  },
+  { deep: true }
 );
 
 // Cos card value can be either number or number[](ace) we get an
@@ -146,4 +203,14 @@ watch(
     (sums.value.player = newCardValues.reduce(calculateSums, [0])),
   { deep: true, immediate: true }
 );
+
+watch(gameStatus, (newStatus) => {
+  if (newStatus === "play") {
+    nextCard.value = 4;
+    hands.value = {
+      dealer: [2, 3],
+      player: [0, 1],
+    };
+  }
+});
 </script>

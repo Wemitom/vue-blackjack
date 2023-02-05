@@ -3,7 +3,7 @@ import type { Card } from "@/utils";
 import CardComp from "./Card-comp.vue";
 import { ref } from "vue";
 
-const props = defineProps<{
+defineProps<{
   deck: Card[];
   cards: number[];
   dealerTurn: boolean;
